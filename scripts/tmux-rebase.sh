@@ -3,7 +3,7 @@
 # Script to find all Git repos, create a new tmux session (or window if a session with same name already exists) for
 # each repo, and then run `git pull --rebase` in the newly created tmux window.
 #
-# Prefer tmux-rebase.py which is an interation over this script.
+# Prefer tmux-rebase.py which is an iteration over this script.
 
 if [[ "$#" -ne 1 ]]; then
   echo must be given a single positional argument as the root directory to search for Git repos
