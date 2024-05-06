@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # List all CodeCommit repos and check them out using CodeCommit Git Credentials helper.
-# Should be run with ./clone-cc-repos.sh profile1 profile2 ...
+# Should be run with ./get-cc-repos.sh profile1 profile2 ...
+#
+# Prefer get-cc-repos.py which knows how to read the profiles from ~/.aws/credentials file.
 
 PREVIOUS=$(git config --global credential.helper)
 
