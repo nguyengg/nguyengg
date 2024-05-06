@@ -32,8 +32,7 @@ if __name__ == "__main__":
 
             sess = svr.sessions.get(session_name=name, default=None)
             if sess is None:
-                sess = svr.new_session(session_name=name, start_directory=root, window_name=name)
-                win = sess.windows.get(window_name=name)
+                pane = svr.new_session(session_name=name, start_directory=root).active_pane
             else:
-                win = sess.new_window(window_name=name, start_directory=root)
-            win.active_pane.send_keys('git pull --rebase')
+                pane = sess.new_window(start_directory=root).active_pane
+            pane.send_keys('git pull --rebase')
