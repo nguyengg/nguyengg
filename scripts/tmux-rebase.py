@@ -7,8 +7,8 @@ import os
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="tmux-rebase.py",
-        description="""Find all Git repos, create a new tmux session (or window if a session with same name already 
-        exists) for each repo, and then run `git pull --rebase` in the newly created tmux window."""
+        description="Find all Git repos, create a new tmux session (or window if a session with same name already "
+                    "exists) for each repo, and then run `git pull --rebase` in the newly active tmux pane."
     )
 
     parser.add_argument('-d', '--max-depth', default=2, type=int, metavar="depth",

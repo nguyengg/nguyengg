@@ -9,9 +9,9 @@ import subprocess
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="get-cc-repos.py",
-        description="""Check out all available CodeCommit repos. If not explicitly given a list of profiles, read from 
-        ~/.aws/credentials (can be overridden with environment variable AWS_SHARED_CREDENTIALS_FILE) to retrieve that 
-        list instead.""",
+        description="Check out all available CodeCommit repos. If not explicitly given a list of AWS profiles, read "
+                    "from ~/.aws/credentials (can be overridden with environment variable AWS_SHARED_CREDENTIALS_FILE) "
+                    "to retrieve that list instead.",
         epilog="Requires AWS CLI to be available in order to use the CodeCommit credential helper."
     )
 
@@ -27,13 +27,13 @@ if __name__ == "__main__":
                 line = line.rstrip()
                 if line.startswith('[') and line.endswith(']'):
                     profiles.append(line[1:-1])
+    profiles = list(dict.fromkeys(profiles, None).keys())
 
     # save the global credential helper in order to revert this setting upon completion.
     previous = subprocess.check_output(
         ['git', 'config', '--global', '--get', '--default', '', 'credential.helper']).decode('utf-8').rstrip()
 
     try:
-        profiles = list(dict.fromkeys(profiles, None).keys())
         for profile in profiles:
             client = boto3.Session(profile_name=profile).client('codecommit')
             repos = [repo.get('repositoryName') for repo in client.list_repositories().get('repositories')]
