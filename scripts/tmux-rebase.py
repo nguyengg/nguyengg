@@ -20,11 +20,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     max_depth = args.max_depth - 1
-    for dir in args.dirs:
-        for root, dirs, files in os.walk(dir):
+    for top in args.dirs:
+        print(top)
+        for root, dirs, files in os.walk(top):
             # root=./my/repo
             # name=my/repo
-            name = os.path.relpath(root, dir)
+            name = os.path.relpath(root, top)
             if name.count(os.path.sep) > max_depth:
                 del dirs[:]
             if '.git' not in dirs:
@@ -32,7 +33,9 @@ if __name__ == "__main__":
 
             sess = svr.sessions.get(session_name=name, default=None)
             if sess is None:
+                print(f"\t{name}: new session")
                 pane = svr.new_session(session_name=name, start_directory=root).active_pane
             else:
+                print(f"\t{name}: new window")
                 pane = sess.new_window(start_directory=root).active_pane
             pane.send_keys('git pull --rebase')
