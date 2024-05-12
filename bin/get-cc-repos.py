@@ -6,13 +6,13 @@ import os
 import pathlib
 import subprocess
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(
         prog="get-cc-repos.py",
         description="Check out all available CodeCommit repos. If not explicitly given a list of AWS profiles, read "
                     "from ~/.aws/credentials (can be overridden with environment variable AWS_SHARED_CREDENTIALS_FILE) "
                     "to retrieve that list instead.",
-        epilog="Requires AWS CLI to be available in order to use the CodeCommit credential helper."
     )
 
     parser.add_argument('profiles', nargs='*', metavar="profile",
@@ -63,3 +63,6 @@ if __name__ == "__main__":
             subprocess.run(['git', 'config', '--global', '--unset', 'credential.helper'])
         else:
             subprocess.run(['git', 'config', '--global', 'credential.helper', previous])
+
+if __name__ == "__main__":
+    main()
