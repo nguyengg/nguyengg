@@ -1,0 +1,34 @@
+#!/bin/bash
+
+usage () {
+    cat << EOF
+$(basename "$0") [fn-1] [fn-2] ...
+
+Writes the environment variables of one or more functions to standard output.
+If no functions are given, \`aws lambda list-functions\` will be used to produce that list.
+
+Requires AWS CLI and jq from PATH.
+EOF
+}
+
+for a in "$@"
+do
+    case "$a" in
+    "-h"|"--help")
+        usage
+        exit 0
+        ;;
+    esac
+done
+
+fns=( "${@}" )
+
+if [ ${#fns[@]} -eq 0 ]; then
+    IFS=$'\n' read -r -d '' -a fns < <( aws lambda list-functions --output json --query 'Functions[].FunctionName' | jq -r '.[]' && printf '\0' )
+fi
+
+for fn in "${fns[@]}"
+do
+    echo "# ${fn}"
+    aws lambda get-function-configuration --function-name "${fn}" --output json --query 'Environment.Variables' | jq -r 'to_entries[] | .key + "=" + .value'
+done
