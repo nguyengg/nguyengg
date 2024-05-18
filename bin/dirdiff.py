@@ -1,68 +1,94 @@
 #!/usr/bin/env python3
 
-import argparse, os, shutil
+import argparse
+import os
+import shutil
 
-
-def generate_path():
-    i: int = 0
-    name = "diff"
-    while True:
-        try:
-            os.makedirs(name, exist_ok=False)
-            return name
-        except FileExistsError:
-            i += 1
-            name = f'diff-{i}'
+from pathlib import Path
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Finds and copies files present in one directory but not the other.")
+    parser = argparse.ArgumentParser(
+        description="Finds and copies files present in one directory but not the other.",
+    )
 
-    parser.add_argument("-p", "--path", dest="path", nargs='?', const=generate_path, default=None,
-                        help="if given a directory, the files will be copied into this path; if given an empty "
-                             "string, an empty directory with a unique name with 'diff' prefix will be created.")
-    parser.add_argument("a", type=str, help="the first directory")
-    parser.add_argument("b", type=str, help="the second directory")
-    parser.add_argument("--with-extension", action='store_false', dest="ignore_extension", default=True, required=False,
-                        help="if given, file extension will be used as part of the diff; by default it is ignored")
+    generate = object()
+    parser.add_argument(
+        "-c",
+        "--copy-to",
+        dest="copy_dir",
+        nargs='?',
+        const=generate,
+        default=None,
+        help="If given a directory, the files will be copied into this path. If given an empty string, an empty "
+             "directory with a unique name (diff or diff-1 or diff-2 etc.) will be created. If absent, only print the "
+             "diff.",
+    )
+    parser.add_argument(
+        "a",
+        type=str,
+        help="the first directory",
+    )
+    parser.add_argument(
+        "b",
+        type=str,
+        help="the second directory",
+    )
 
     args = parser.parse_args()
-    a, b, path, ignore_extension = args.a, args.b, args.path, args.ignore_extension
+
+    a = Path(args.a)
+    b = Path(args.b)
+    copy_dir = args.copy_dir
 
     common_path = os.path.commonpath((a, b))
-    a_rel, b_rel = os.path.relpath(a, start=common_path), os.path.relpath(b, start=common_path)
+    a_rel = a.relative_to(common_path)
+    b_rel = b.relative_to(common_path)
+    a_files = {
+        Path(root, filename).relative_to(a)
+        for (root, _, filenames) in a.walk()
+        for filename in filenames
+    }
+    b_files = {
+        Path(root, filename).relative_to(b)
+        for (root, _, filenames) in b.walk()
+        for filename in filenames
+    }
+    in_a_only, in_b_only = (a_files - b_files), (b_files - a_files)
 
-    a_files = {os.path.relpath(os.path.join(dirpath, filename), start=a) for (dirpath, _, filenames) in os.walk(a) for
-               filename in filenames}
-    b_files = {os.path.relpath(os.path.join(dirpath, filename), start=b) for (dirpath, _, filenames) in os.walk(b) for
-               filename in filenames}
-    in_a, in_b = (a_files - b_files), (b_files - a_files)
-    if ignore_extension:
-        noext = lambda rp: os.path.splitext(os.path.basename(rp))[0]
-        common_files = {noext(a) for a in in_a}.intersection({noext(b) for b in in_b})
-        in_a = {a for a in in_a if noext(a) not in common_files}
-        in_b = {b for b in in_b if noext(b) not in common_files}
+    if copy_dir is generate:
+        i = 1
+        copy_dir = "diff"
+        while True:
+            try:
+                os.makedirs(copy_dir, exist_ok=False)
+                copy_dir = Path(copy_dir)
+                break
+            except FileExistsError:
+                copy_dir = f'diff-{i}'
+                i += 1
+    elif copy_dir:
+        copy_dir = Path(copy_dir)
+        copy_dir.mkdir(exist_ok=True)
+    else:
+        print(f'"{a_rel}" has {len(in_a_only)}/{len(a_files)} exclusive files')
+        print(f'"{b_rel}" has {len(in_b_only)}/{len(b_files)} exclusive files')
+        return
 
-    print("%s has %d files with %d extra" % (a_rel, len(a_files), len(in_a)))
-    print("%s has %d files with %d extra" % (b_rel, len(b_files), len(in_b)))
+    m = len(in_a_only)
+    n = m + len(in_b_only)
 
-    if path is generate_path:
-        path = generate_path()
+    for i, src in enumerate(in_a_only):
+        dst = copy_dir / src
+        print(f'{i + 1}/{n} "{a_rel / src}"')
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(a / src, dst)
 
-    if path:
-        os.makedirs(path, exist_ok=True)
-
-        for file_relpath in in_a:
-            filepath = os.path.join(path, file_relpath)
-            dirpath = os.path.dirname(filepath)
-            os.makedirs(dirpath, exist_ok=True)
-            shutil.copyfile(os.path.join(a, file_relpath), filepath)
-
-        for file_relpath in in_b:
-            filepath = os.path.join(path, file_relpath)
-            dirpath = os.path.dirname(filepath)
-            os.makedirs(dirpath, exist_ok=True)
-            shutil.copyfile(os.path.join(b, file_relpath), filepath)
+    for i, src in enumerate(in_b_only):
+        dst = copy_dir / src
+        print(f'{i + 1 + m}/{n} "{b_rel / src}"')
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(b / src, dst)
 
 
 if __name__ == "__main__":
