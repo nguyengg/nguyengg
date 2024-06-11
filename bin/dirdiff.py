@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import platform
 import shutil
 
 from pathlib import Path
@@ -26,20 +27,33 @@ def main():
     )
     parser.add_argument(
         "a",
+        nargs='?',
         type=str,
-        help="the first directory",
+        help="the first directory; if not given, a dialog will be opened to select an existing directory",
     )
     parser.add_argument(
         "b",
+        nargs='?',
         type=str,
-        help="the second directory",
+        help="the second directory; if not given, a dialog will be opened to select an existing directory",
     )
 
     args = parser.parse_args()
+    if args.a is None:
+        a = askdirectory(title="Select first directory")
+        if not a:
+            return
+        a = Path(a)
+    else:
+        a = Path(args.a)
 
-    a = Path(args.a)
-    b = Path(args.b)
-    copy_dir = args.copy_dir
+    if args.b is None:
+        b = askdirectory(initialdir=a.parent, title="Select second directory")
+        if not b:
+            return
+        b = Path(b)
+    else:
+        b = Path(args.b)
 
     common_path = os.path.commonpath((a, b))
     a_rel = a.relative_to(common_path)
@@ -56,20 +70,11 @@ def main():
     }
     in_a_only, in_b_only = (a_files - b_files), (b_files - a_files)
 
-    if copy_dir is generate:
-        i = 1
-        copy_dir = "diff"
-        while True:
-            try:
-                os.makedirs(copy_dir, exist_ok=False)
-                copy_dir = Path(copy_dir)
-                break
-            except FileExistsError:
-                copy_dir = f'diff-{i}'
-                i += 1
-    elif copy_dir:
-        copy_dir = Path(copy_dir)
-        copy_dir.mkdir(exist_ok=True)
+    if args.copy_dir is generate:
+        copy_dir = gen_copy_dir(askparentdir=args.a is None or args.b is None, initialdir=b.parent)
+    elif args.copy_dir:
+        copy_dir = Path(args.copy_dir)
+        copy_dir.mkdir(parents=True, exist_ok=True)
     else:
         print(f'"{a_rel}" has {len(in_a_only)}/{len(a_files)} exclusive files')
         print(f'"{b_rel}" has {len(in_b_only)}/{len(b_files)} exclusive files')
@@ -91,5 +96,35 @@ def main():
         shutil.copy2(b / src, dst)
 
 
+def askdirectory(initialdir=None, title="Select directory"):
+    from tkinter import Tk
+    from tkinter.filedialog import askdirectory
+    Tk().withdraw()
+    return askdirectory(initialdir=initialdir, title=title, mustexist=True)
+
+
+def gen_copy_dir(askparentdir=False, initialdir=None):
+    if askparentdir:
+        v = askdirectory(initialdir=initialdir, title="Select parent directory to create directory to copy diff to")
+        if not v:
+            return None
+        p = Path(v) / "diff"
+    else:
+        p = Path("diff")
+
+    i = 1
+    while True:
+        try:
+            p.mkdir(parents=True, exist_ok=False)
+            return p
+        except FileExistsError:
+            p = p.parent / f'diff-{i}'
+            i += 1
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        if platform.system() == "Windows":
+            input("Press enter to close console")
