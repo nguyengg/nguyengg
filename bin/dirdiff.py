@@ -50,6 +50,7 @@ def main():
     if args.a is None:
         a = askdirectory(title="Select first directory")
         if not a:
+            print("first directory not selected; bye")
             return
         a = Path(a)
     else:
@@ -58,12 +59,13 @@ def main():
     if args.b is None:
         b = askdirectory(initialdir=a.parent, title="Select second directory")
         if not b:
+            print("second directory not selected; bye")
             return
         b = Path(b)
     else:
         b = Path(args.b)
 
-    filename_filter = lambda: True
+    filename_filter = lambda *_: True
     if args.ext:
         import re
         p = re.compile(f"\\.({'|'.join(e.removeprefix(".") for e in args.ext)})")
@@ -91,7 +93,8 @@ def main():
     elif args.copy_dir:
         copy_dir = Path(args.copy_dir)
         copy_dir.mkdir(parents=True, exist_ok=True)
-    else:
+
+    if not args.copy_dir:
         print(f'"{a_rel}" has {len(in_a_only)}/{len(a_files)} exclusive files')
         print(f'"{b_rel}" has {len(in_b_only)}/{len(b_files)} exclusive files')
         return
