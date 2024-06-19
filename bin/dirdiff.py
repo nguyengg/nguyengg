@@ -26,6 +26,14 @@ def main():
              "diff.",
     )
     parser.add_argument(
+        "-e",
+        "--ext",
+        action="append",
+        dest="ext",
+        help="One or more file extensions to filter results. If none are given, all file extensions are included in "
+             "diff computation. The values are implicitly prefixed with '.' if not explicitly specified.",
+    )
+    parser.add_argument(
         "a",
         nargs='?',
         type=str,
@@ -55,6 +63,12 @@ def main():
     else:
         b = Path(args.b)
 
+    filename_filter = lambda: True
+    if args.ext:
+        import re
+        p = re.compile(f"\\.({'|'.join(e.removeprefix(".") for e in args.ext)})")
+        filename_filter = p.fullmatch
+
     common_path = os.path.commonpath((a, b))
     a_rel = a.relative_to(common_path)
     b_rel = b.relative_to(common_path)
@@ -62,11 +76,13 @@ def main():
         Path(root, filename).relative_to(a)
         for (root, _, filenames) in a.walk()
         for filename in filenames
+        if filename_filter(filename)
     }
     b_files = {
         Path(root, filename).relative_to(b)
         for (root, _, filenames) in b.walk()
         for filename in filenames
+        if filename_filter(filename)
     }
     in_a_only, in_b_only = (a_files - b_files), (b_files - a_files)
 
