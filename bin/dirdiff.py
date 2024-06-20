@@ -50,16 +50,16 @@ def main():
     if args.a is None:
         a = askdirectory(title="Select first directory")
         if not a:
-            print("first directory not selected; bye")
+            print("No first directory to compare")
             return
         a = Path(a)
     else:
         a = Path(args.a)
 
     if args.b is None:
-        b = askdirectory(initialdir=a.parent, title="Select second directory")
+        b = askdirectory(initialdir=a.parent, title=f"Select second directory to compare against '{a}'")
         if not b:
-            print("second directory not selected; bye")
+            print("No second directory to compare")
             return
         b = Path(b)
     else:
@@ -89,7 +89,11 @@ def main():
     in_a_only, in_b_only = (a_files - b_files), (b_files - a_files)
 
     if args.copy_dir is generate:
-        copy_dir = gen_copy_dir(askparentdir=args.a is None or args.b is None, initialdir=b.parent)
+        try:
+            initialdir = os.path.commonpath([a, b])
+        except ValueError:
+            initialdir = b.parent
+        copy_dir = gen_copy_dir(askparentdir=args.a is None or args.b is None, initialdir=initialdir)
     elif args.copy_dir:
         copy_dir = Path(args.copy_dir)
         copy_dir.mkdir(parents=True, exist_ok=True)
