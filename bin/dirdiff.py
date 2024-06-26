@@ -2,13 +2,13 @@
 
 import argparse
 import os
-import platform
 import shutil
-
 from pathlib import Path
+from tkinter import Tk
+from typing import Callable, Iterator
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Finds and copies files present in one directory but not the other.",
     )
@@ -18,40 +18,39 @@ def main():
         "-c",
         "--copy-to",
         dest="copy_dir",
-        nargs='?',
+        nargs="?",
         const=generate,
         default=None,
-        help="If given a directory, the files will be copied into this path. If given an empty string, an empty "
+        help="if given a directory, the files will be copied into this path. If given an empty string, an empty "
              "directory with a unique name (diff or diff-1 or diff-2 etc.) will be created. If absent, only print the "
-             "diff.",
+             "diff to standard output.",
     )
     parser.add_argument(
         "-e",
         "--ext",
         action="append",
         dest="ext",
-        help="One or more file extensions to filter results. If none are given, all file extensions are included in "
-             "diff computation. The values are implicitly prefixed with '.' if not explicitly specified.",
+        help="one or more file extensions to filter results. If none are given, all file extensions are included in "
+             "diff computation. The flag values are implicitly prefixed with '.' if not explicitly prefixed.",
     )
     parser.add_argument(
         "a",
-        nargs='?',
+        nargs="?",
         type=str,
-        help="the first directory; if not given, a dialog will be opened to select an existing directory",
+        help="the first directory; if not given, open a dialog select an existing directory",
     )
     parser.add_argument(
         "b",
-        nargs='?',
+        nargs="?",
         type=str,
-        help="the second directory; if not given, a dialog will be opened to select an existing directory",
+        help="the second directory; if not given, open a dialog to select an existing directory",
     )
 
     args = parser.parse_args()
     if args.a is None:
         a = askdirectory(title="Select first directory")
         if not a:
-            print("No first directory to compare")
-            return
+            exit(1)
         a = Path(a)
     else:
         a = Path(args.a)
@@ -59,35 +58,12 @@ def main():
     if args.b is None:
         b = askdirectory(initialdir=a.parent, title=f"Select second directory to compare against '{a}'")
         if not b:
-            print("No second directory to compare")
-            return
+            exit(1)
         b = Path(b)
     else:
         b = Path(args.b)
 
-    filename_filter = lambda *_: True
-    if args.ext:
-        import re
-        p = re.compile(f"\\.({'|'.join(e.removeprefix(".") for e in args.ext)})")
-        filename_filter = p.fullmatch
-
-    common_path = os.path.commonpath((a, b))
-    a_rel = a.relative_to(common_path)
-    b_rel = b.relative_to(common_path)
-    a_files = {
-        Path(root, filename).relative_to(a)
-        for (root, _, filenames) in a.walk()
-        for filename in filenames
-        if filename_filter(filename)
-    }
-    b_files = {
-        Path(root, filename).relative_to(b)
-        for (root, _, filenames) in b.walk()
-        for filename in filenames
-        if filename_filter(filename)
-    }
-    in_a_only, in_b_only = (a_files - b_files), (b_files - a_files)
-
+    copy_dir: Path | None = None
     if args.copy_dir is generate:
         try:
             initialdir = os.path.commonpath([a, b])
@@ -98,35 +74,55 @@ def main():
         copy_dir = Path(args.copy_dir)
         copy_dir.mkdir(parents=True, exist_ok=True)
 
-    if not args.copy_dir:
-        print(f'"{a_rel}" has {len(in_a_only)}/{len(a_files)} exclusive files')
-        print(f'"{b_rel}" has {len(in_b_only)}/{len(b_files)} exclusive files')
-        return
+    filename_filter = default_filter
+    if args.ext:
+        import re
 
-    m = len(in_a_only)
-    n = m + len(in_b_only)
+        p = re.compile(f"\\.({'|'.join(e.removeprefix(".") for e in args.ext)})")
+        filename_filter = p.fullmatch
 
-    for i, src in enumerate(in_a_only):
-        dst = copy_dir / src
-        print(f'{i + 1}/{n} "{a_rel / src}"')
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(a / src, dst)
+    if copy_dir:
+        for x, y in walk_cmp(a, b, filename_filter):
+            if x:
+                x = x.relative_to(a)
+                print(f"<<< {x}")
+                dst = copy_dir / x
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(a / x, dst)
+            else:
+                y = y.relative_to(b)
+                print(f">>> {y}")
+                dst = copy_dir / y
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(b / y, dst)
+    else:
+        for x, y in walk_cmp(a, b, filename_filter):
+            if x:
+                print(f"<<< {x.relative_to(a)}")
+            else:
+                print(f">>> {y.relative_to(b)}")
 
-    for i, src in enumerate(in_b_only):
-        dst = copy_dir / src
-        print(f'{i + 1 + m}/{n} "{b_rel / src}"')
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(b / src, dst)
+    if os.name == "nt":
+        input("Press enter to close console")
 
 
-def askdirectory(initialdir=None, title="Select directory"):
-    from tkinter import Tk
+tk: Tk | None = None
+
+
+def askdirectory(initialdir=None, title="Select directory") -> Path | None:
+    global tk
+    if tk is None:
+        tk = Tk()
+        tk.withdraw()
+
     from tkinter.filedialog import askdirectory
-    Tk().withdraw()
-    return askdirectory(initialdir=initialdir, title=title, mustexist=True)
+
+    v = askdirectory(initialdir=initialdir, title=title, mustexist=True)
+    if v:
+        return Path(v)
 
 
-def gen_copy_dir(askparentdir=False, initialdir=None):
+def gen_copy_dir(askparentdir=False, initialdir=None) -> Path | None:
     if askparentdir:
         v = askdirectory(initialdir=initialdir, title="Select parent directory to create directory to copy diff to")
         if not v:
@@ -141,13 +137,80 @@ def gen_copy_dir(askparentdir=False, initialdir=None):
             p.mkdir(parents=True, exist_ok=False)
             return p
         except FileExistsError:
-            p = p.parent / f'diff-{i}'
+            p = p.parent / f"diff-{i}"
             i += 1
 
 
+def default_filter(*_):
+    return True
+
+
+def drain(left: bool, it: Iterator[str], value: str | None = None) -> Iterator[tuple[Path | None, Path | None]]:
+    if left:
+        if value:
+            yield Path(value), None
+        for f in it:
+            yield Path(f), None
+    else:
+        if value:
+            yield None, Path(value)
+        for f in it:
+            yield None, Path(f)
+
+
+def walk_orderly(root: Path, filename_filter: Callable[[str], bool]) -> Iterator[Path]:
+    for root, dirs, files in root.walk():
+        dirs.sort()
+        files.sort()
+        for f in filter(filename_filter, files):
+            yield Path(root, f)
+
+
+def walk_cmp(a: Path, b: Path, filename_filter: Callable[[str], bool]) -> Iterator[tuple[Path | None, Path | None]]:
+    a_walker = walk_orderly(a, filename_filter)
+    b_walker = walk_orderly(b, filename_filter)
+
+    while True:
+        try:
+            x = next(a_walker)
+            rel_a = str(x.relative_to(a))
+        except StopIteration:
+            for f in b_walker:
+                yield None, f
+            return
+
+        try:
+            y = next(b_walker)
+            rel_b = str(y.relative_to(b))
+        except StopIteration:
+            if x:
+                yield x, None
+            for f in a_walker:
+                yield f, None
+            return
+
+        try:
+            while rel_a < rel_b:
+                yield x, None
+                x = next(a_walker)
+                rel_a = str(x.relative_to(a))
+        except StopIteration:
+            yield None, y
+            for f in b_walker:
+                yield None, f
+            return
+
+        try:
+            while rel_a > rel_b:
+                yield None, y
+                y = next(b_walker)
+                rel_b = str(y.relative_to(b))
+        except StopIteration:
+            yield x, None
+            for f in a_walker:
+                yield f, None
+            return
+
+
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        if platform.system() == "Windows":
-            input("Press enter to close console")
+    main()
