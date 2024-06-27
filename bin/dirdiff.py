@@ -3,6 +3,7 @@
 import argparse
 import os
 import shutil
+from itertools import chain, zip_longest
 from pathlib import Path
 from tkinter import Tk
 from typing import Callable, Iterator
@@ -162,19 +163,15 @@ def walk_cmp(a: Path, b: Path, filename_filter: Callable[[str], bool]) -> Iterat
             x = next(a_walker)
             rel_a = str(x.relative_to(a))
         except StopIteration:
-            for f in b_walker:
-                yield None, f
-            return
+            yield from zip_longest([], b_walker)
+            break
 
         try:
             y = next(b_walker)
             rel_b = str(y.relative_to(b))
         except StopIteration:
-            if x:
-                yield x, None
-            for f in a_walker:
-                yield f, None
-            return
+            yield from zip_longest(chain([x], a_walker), [])
+            break
 
         try:
             while rel_a < rel_b:
@@ -182,10 +179,8 @@ def walk_cmp(a: Path, b: Path, filename_filter: Callable[[str], bool]) -> Iterat
                 x = next(a_walker)
                 rel_a = str(x.relative_to(a))
         except StopIteration:
-            yield None, y
-            for f in b_walker:
-                yield None, f
-            return
+            yield from zip_longest([], chain([y], b_walker))
+            break
 
         try:
             while rel_a > rel_b:
@@ -193,10 +188,8 @@ def walk_cmp(a: Path, b: Path, filename_filter: Callable[[str], bool]) -> Iterat
                 y = next(b_walker)
                 rel_b = str(y.relative_to(b))
         except StopIteration:
-            yield x, None
-            for f in a_walker:
-                yield f, None
-            return
+            yield from zip_longest(chain([x], a_walker), [])
+            break
 
 
 if __name__ == "__main__":
