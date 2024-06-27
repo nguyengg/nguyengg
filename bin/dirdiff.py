@@ -91,7 +91,7 @@ def main() -> None:
                 shutil.copy2(a / x, dst)
             else:
                 y = y.relative_to(b)
-                print(f">>> {y}")
+                print(f"\t>>> {y}")
                 dst = copy_dir / y
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(b / y, dst)
@@ -100,7 +100,7 @@ def main() -> None:
             if x:
                 print(f"<<< {x.relative_to(a)}")
             else:
-                print(f">>> {y.relative_to(b)}")
+                print(f"\t>>> {y.relative_to(b)}")
 
     if os.name == "nt":
         input("Press enter to close console")
@@ -124,7 +124,7 @@ def askdirectory(initialdir=None, title="Select directory") -> Path | None:
 
 def gen_copy_dir(askparentdir=False, initialdir=None) -> Path | None:
     if askparentdir:
-        v = askdirectory(initialdir=initialdir, title="Select parent directory to create directory to copy diff to")
+        v = askdirectory(initialdir=initialdir, title="Select parent directory that will contain the diff-* directory")
         if not v:
             return None
         p = Path(v) / "diff"
