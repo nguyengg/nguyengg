@@ -145,19 +145,6 @@ def default_filter(*_):
     return True
 
 
-def drain(left: bool, it: Iterator[str], value: str | None = None) -> Iterator[tuple[Path | None, Path | None]]:
-    if left:
-        if value:
-            yield Path(value), None
-        for f in it:
-            yield Path(f), None
-    else:
-        if value:
-            yield None, Path(value)
-        for f in it:
-            yield None, Path(f)
-
-
 def walk_orderly(root: Path, filename_filter: Callable[[str], bool]) -> Iterator[Path]:
     for root, dirs, files in root.walk():
         dirs.sort()
