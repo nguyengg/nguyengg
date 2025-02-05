@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# This script requires asyncio and libtmux. It can run `git pull --rebase` concurrently in directories that contain a
+# Git repo (by existence of .git) to create a tmux session in that directory.
+#
+# tmux-rebase is a shell version predecessor of this script that does the same thing but sequentially.
+
 import argparse
 import asyncio
 import os
