@@ -8,10 +8,10 @@ from time import sleep
 def main():
     parser = argparse.ArgumentParser(
         prog="no-sleep.py",
-        description="Prevents the machine from going to sleep by emitting a key press and release periodically."
+        description="Prevents the machine from going to sleep by emitting a key press (default to F15 to match Caffeine) and release periodically."
     )
     parser.add_argument("-k", "--key",
-                        default="print_screen",
+                        default="f15",
                         help="Sets the key to use",
                         type=key_type)
     parser.add_argument("-s", "--sleep-seconds",
@@ -24,7 +24,7 @@ def main():
     kb = Controller()
 
     while True:
-        print('print_screen')
+        print(key)
         kb.press(key)
         kb.release(key)
         sleep(seconds)
