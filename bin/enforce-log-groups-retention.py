@@ -62,18 +62,24 @@ def main():
 
     parser.add_argument('-d', '--retention-in-days', default=7, type=int,
                         help="The number of retention days to set, default to 7")
+    parser.add_argument('--no-use-shared-credentials-file', action='store_true', dest='no_use_shared_credentials_file',
+                        help="""If specified, will not load the default shared AWS credentials file even if no profiles
+                         are provided. Useful when credentials are provided via environment variables.""")
     parser.add_argument('profiles', nargs='*', metavar="profile",
                         help="The profiles to create the AWS CloudWatch Logs client. If none are given, will read from "
                              "the shared credential file to populate the list of profiles")
     args = parser.parse_args()
     profiles = args.profiles
     if len(profiles) == 0:
-        with open(os.getenv("AWS_SHARED_CREDENTIALS_FILE", os.path.join(pathlib.Path.home(), ".aws/credentials")),
-                  'r') as file:
-            while line := file.readline():
-                line = line.rstrip()
-                if line.startswith('[') and line.endswith(']'):
-                    profiles.append(line[1:-1])
+        if args.no_use_shared_credentials_file:
+            profiles=[None]
+        else:
+            with open(os.getenv("AWS_SHARED_CREDENTIALS_FILE", os.path.join(pathlib.Path.home(), ".aws/credentials")),
+                      'r') as file:
+                while line := file.readline():
+                    line = line.rstrip()
+                    if line.startswith('[') and line.endswith(']'):
+                        profiles.append(line[1:-1])
     profiles = list(dict.fromkeys(profiles, None).keys())
 
     for profile in profiles:
